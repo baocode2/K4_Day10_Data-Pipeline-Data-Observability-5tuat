@@ -62,9 +62,11 @@ def test_raw_to_clean_contract_and_lineage() -> None:
     )
     assert "Categories:" not in clean.loc[1, "text_for_embedding"]
     assert clean.attrs["cleaning_report"] == {
+        "run_date": "2025-02-01T00:00:00+00:00",
         "input_records": 7,
         "valid_before_deduplication": 3,
         "output_records": 2,
+        "filtered_records": 4,
         "duplicates_removed": 1,
         "rejected": {
             "missing_paper_id": 0,
@@ -72,6 +74,11 @@ def test_raw_to_clean_contract_and_lineage() -> None:
             "missing_summary": 1,
             "summary_too_short": 1,
             "invalid_published": 1,
+        },
+        "rules": {
+            "required_fields": ["paper_id", "title", "summary", "published"],
+            "minimum_summary_chars": 100,
+            "duplicate_key": "paper_id (case-insensitive)",
         },
     }
 
@@ -119,13 +126,26 @@ def test_clean_artifacts_round_trip_with_typed_json(tmp_path) -> None:
     clean = build_clean_dataframe([paper(1), paper(2)], datetime(2025, 2, 1, tzinfo=UTC))
     csv_path = tmp_path / "papers_clean.csv"
     json_path = tmp_path / "papers_clean.json"
+    report_path = tmp_path / "cleaning_report.json"
 
     save_clean_dataframe(clean, csv_path, json_path)
 
     csv_frame = pd.read_csv(csv_path)
     json_records = json.loads(json_path.read_text(encoding="utf-8"))
+    cleaning_report = json.loads(report_path.read_text(encoding="utf-8"))
     assert csv_frame.columns.tolist() == CLEAN_COLUMNS
     assert json.loads(csv_frame.loc[0, "authors"]) == ["Ada Lovelace", "Alan Turing"]
     assert json_records[0]["authors"] == ["Ada Lovelace", "Alan Turing"]
     assert isinstance(json_records[0]["age_days"], int)
     assert all("\n" not in row["text_for_embedding"] for row in json_records)
+    assert cleaning_report["input_records"] == 2
+    assert cleaning_report["output_records"] == 2
+    assert cleaning_report["filtered_records"] == 0
+
+
+def test_save_requires_cleaning_lineage(tmp_path) -> None:
+    clean = build_clean_dataframe([paper(1)], datetime(2025, 2, 1, tzinfo=UTC))
+    clean.attrs.clear()
+
+    with pytest.raises(ValueError, match="cleaning_report"):
+        save_clean_dataframe(clean, tmp_path / "clean.csv", tmp_path / "clean.json")
