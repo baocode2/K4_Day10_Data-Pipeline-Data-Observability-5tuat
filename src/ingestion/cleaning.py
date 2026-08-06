@@ -183,20 +183,37 @@ def build_clean_dataframe(records: list[PaperRecord], run_date: datetime) -> pd.
         ).reset_index(drop=True)
 
     frame.attrs["cleaning_report"] = {
+        "run_date": run_timestamp.isoformat(),
         "input_records": len(records),
         "valid_before_deduplication": before_deduplication,
         "output_records": len(frame),
+        "filtered_records": sum(rejected.values()),
         "duplicates_removed": before_deduplication - len(frame),
         "rejected": rejected,
+        "rules": {
+            "required_fields": ["paper_id", "title", "summary", "published"],
+            "minimum_summary_chars": MIN_SUMMARY_CHARS,
+            "duplicate_key": "paper_id (case-insensitive)",
+        },
     }
     return frame
 
 
-def save_clean_dataframe(df: pd.DataFrame, csv_path: Path, json_path: Path) -> None:
-    """Persist the clean contract as interoperable CSV and typed JSON artifacts."""
+def save_clean_dataframe(
+    df: pd.DataFrame,
+    csv_path: Path,
+    json_path: Path,
+    report_path: Path | None = None,
+) -> None:
+    """Persist clean CSV/JSON plus the raw-to-clean lineage report."""
     missing = [column for column in CLEAN_COLUMNS if column not in df.columns]
     if missing:
         raise ValueError(f"Cannot save clean dataframe; missing columns: {', '.join(missing)}")
+    cleaning_report = df.attrs.get("cleaning_report")
+    if not isinstance(cleaning_report, dict):
+        raise ValueError(
+            "Cannot save traceable clean artifacts; DataFrame.attrs['cleaning_report'] is missing."
+        )
 
     ordered = df.loc[:, CLEAN_COLUMNS].copy()
     csv_frame = ordered.copy()
@@ -212,3 +229,6 @@ def save_clean_dataframe(df: pd.DataFrame, csv_path: Path, json_path: Path) -> N
     # numbers while retaining authors/categories as arrays.
     json_records = json.loads(ordered.to_json(orient="records", force_ascii=False))
     write_json(Path(json_path), json_records)
+
+    output_report_path = Path(report_path) if report_path else Path(json_path).with_name("cleaning_report.json")
+    write_json(output_report_path, cleaning_report)

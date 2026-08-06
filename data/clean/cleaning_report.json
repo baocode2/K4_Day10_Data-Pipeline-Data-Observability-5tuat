@@ -1,0 +1,25 @@
+{
+  "run_date": "2026-08-06T08:52:12.214352+00:00",
+  "input_records": 24,
+  "valid_before_deduplication": 24,
+  "output_records": 24,
+  "filtered_records": 0,
+  "duplicates_removed": 0,
+  "rejected": {
+    "missing_paper_id": 0,
+    "missing_title": 0,
+    "missing_summary": 0,
+    "summary_too_short": 0,
+    "invalid_published": 0
+  },
+  "rules": {
+    "required_fields": [
+      "paper_id",
+      "title",
+      "summary",
+      "published"
+    ],
+    "minimum_summary_chars": 100,
+    "duplicate_key": "paper_id (case-insensitive)"
+  }
+}
