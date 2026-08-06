@@ -1,25 +1,179 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
+from typing import Any, Iterable
 
 import pandas as pd
 
+from core.utils import normalize_whitespace
 from ingestion.crossref import PaperRecord
 
 
-def build_clean_dataframe(records: list[PaperRecord], run_date: datetime) -> pd.DataFrame:
-    """TODO(student): clean raw records thanh dataframe san sang de embed.
+CLEAN_COLUMNS = [
+    "paper_id",
+    "title",
+    "summary",
+    "authors",
+    "authors_joined",
+    "categories",
+    "categories_joined",
+    "primary_category",
+    "published",
+    "updated",
+    "age_days",
+    "summary_chars",
+    "text_for_embedding",
+    "abs_url",
+    "pdf_url",
+    "comment",
+]
 
-    Pseudo-code:
-    1. Normalize title, summary, authors, categories.
-    2. Parse published/updated date.
-    3. Tinh age_days.
-    4. Tao cot helper:
-       - authors_joined
-       - categories_joined
-       - summary_chars
-       - text_for_embedding
-    5. Drop duplicates va filter row xau.
-    6. Sort dataframe va return.
+
+def _clean_text(value: Any) -> str:
+    """Return a compact string and tolerate imperfect raw snapshots."""
+    if value is None or (not isinstance(value, (list, tuple, dict)) and pd.isna(value)):
+        return ""
+    return normalize_whitespace(str(value))
+
+
+def _clean_list(values: Iterable[Any] | Any) -> list[str]:
+    """Normalize a list while preserving order and removing case-insensitive duplicates."""
+    if values is None:
+        return []
+    if isinstance(values, str):
+        values = [values]
+
+    result: list[str] = []
+    seen: set[str] = set()
+    for value in values:
+        cleaned = _clean_text(value)
+        key = cleaned.casefold()
+        if cleaned and key not in seen:
+            seen.add(key)
+            result.append(cleaned)
+    return result
+
+
+def _parse_date(value: Any) -> pd.Timestamp | None:
+    """Parse a source date as UTC; invalid or missing values are rejected."""
+    cleaned = _clean_text(value)
+    if not cleaned:
+        return None
+    parsed = pd.to_datetime(cleaned, errors="coerce", utc=True)
+    if pd.isna(parsed):
+        return None
+    return parsed
+
+
+def build_text_for_embedding(
+    title: Any,
+    summary: Any,
+    authors_joined: Any = "",
+    categories_joined: Any = "",
+) -> str:
+    """Build the single, labelled document consumed by MiniLM/Chroma."""
+    parts = [
+        f"Title: {_clean_text(title)}",
+        f"Authors: {_clean_text(authors_joined)}",
+        f"Categories: {_clean_text(categories_joined)}",
+        f"Summary: {_clean_text(summary)}",
+    ]
+    return "\n".join(parts)
+
+
+def build_clean_dataframe(records: list[PaperRecord], run_date: datetime) -> pd.DataFrame:
+    """Normalize raw Crossref records into the stable dataframe used downstream.
+
+    A valid row needs a stable ID, title, summary and parseable publication date.
+    Duplicate IDs are matched case-insensitively and the first valid source row is
+    kept. Cleaning statistics are attached to ``DataFrame.attrs`` so orchestration
+    code can report raw-to-clean lineage without adding technical columns.
     """
-    raise NotImplementedError("Student task: implement cleaning pipeline.")
+    if run_date.tzinfo is None:
+        run_timestamp = pd.Timestamp(run_date, tz=UTC)
+    else:
+        run_timestamp = pd.Timestamp(run_date).tz_convert(UTC)
+    run_day = run_timestamp.normalize()
+
+    rows: list[dict[str, Any]] = []
+    rejected = {
+        "missing_paper_id": 0,
+        "missing_title": 0,
+        "missing_summary": 0,
+        "invalid_published": 0,
+    }
+
+    for record in records:
+        paper_id = _clean_text(record.paper_id)
+        title = _clean_text(record.title)
+        summary = _clean_text(record.summary)
+        published_at = _parse_date(record.published)
+
+        if not paper_id:
+            rejected["missing_paper_id"] += 1
+            continue
+        if not title:
+            rejected["missing_title"] += 1
+            continue
+        if not summary:
+            rejected["missing_summary"] += 1
+            continue
+        if published_at is None:
+            rejected["invalid_published"] += 1
+            continue
+
+        authors = _clean_list(record.authors)
+        categories = _clean_list(record.categories)
+        primary_category = _clean_text(record.primary_category)
+        if primary_category and primary_category.casefold() not in {item.casefold() for item in categories}:
+            categories.insert(0, primary_category)
+        if not primary_category and categories:
+            primary_category = categories[0]
+
+        authors_joined = ", ".join(authors)
+        categories_joined = ", ".join(categories)
+        published = published_at.date().isoformat()
+        updated_at = _parse_date(record.updated)
+        updated = updated_at.date().isoformat() if updated_at is not None else published
+        age_days = max(0, (run_day - published_at.normalize()).days)
+
+        rows.append(
+            {
+                "paper_id": paper_id,
+                "title": title,
+                "summary": summary,
+                "authors": authors,
+                "authors_joined": authors_joined,
+                "categories": categories,
+                "categories_joined": categories_joined,
+                "primary_category": primary_category,
+                "published": published,
+                "updated": updated,
+                "age_days": age_days,
+                "summary_chars": len(summary),
+                "text_for_embedding": build_text_for_embedding(
+                    title, summary, authors_joined, categories_joined
+                ),
+                "abs_url": _clean_text(record.abs_url),
+                "pdf_url": _clean_text(record.pdf_url),
+                "comment": _clean_text(record.comment),
+            }
+        )
+
+    frame = pd.DataFrame(rows, columns=CLEAN_COLUMNS)
+    before_deduplication = len(frame)
+    if not frame.empty:
+        frame["_paper_id_key"] = frame["paper_id"].str.casefold()
+        frame = frame.drop_duplicates(subset="_paper_id_key", keep="first").drop(columns="_paper_id_key")
+        frame = frame.sort_values(
+            by=["published", "paper_id"], ascending=[False, True], kind="stable"
+        ).reset_index(drop=True)
+
+    frame.attrs["cleaning_report"] = {
+        "input_records": len(records),
+        "valid_before_deduplication": before_deduplication,
+        "output_records": len(frame),
+        "duplicates_removed": before_deduplication - len(frame),
+        "rejected": rejected,
+    }
+    return frame
