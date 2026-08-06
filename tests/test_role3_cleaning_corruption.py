@@ -90,7 +90,8 @@ def test_corruption_is_auditable_and_does_not_mutate_baseline(tmp_path) -> None:
     assert (corrupted["age_days"] > baseline["age_days"].max()).any()
     for _, row in corrupted.iterrows():
         assert f"Title: {row['title']}" in row["text_for_embedding"]
-        assert f"Summary: {row['summary']}" in row["text_for_embedding"]
+        expected_summary = f"Summary: {row['summary']}" if row["summary"] else "Summary:"
+        assert row["text_for_embedding"].splitlines()[-1] == expected_summary
 
     # Repair is a clean rebuild from the trusted raw snapshot, never an edit of
     # the corrupted dataframe.
