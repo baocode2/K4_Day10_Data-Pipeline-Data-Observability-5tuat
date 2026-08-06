@@ -25,7 +25,9 @@ def main() -> None:
         sys.exit(1)
 
     print(f"📖 Reading clean data from {clean_path}...")
-    df = pd.read_csv(clean_path)
+    # Preserve intentionally empty optional strings instead of converting them
+    # to float NaN values that Chroma cannot use as text metadata.
+    df = pd.read_csv(clean_path, keep_default_na=False)
     print(f"  Rows loaded: {len(df)}")
 
     print("🔨 Building LocalEmbeddingIndex (papers-baseline)...")

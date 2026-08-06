@@ -2,13 +2,16 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 import json
+from pathlib import Path
 
 import pandas as pd
 import pytest
 
 from ingestion.cleaning import CLEAN_COLUMNS, build_clean_dataframe, save_clean_dataframe
 from ingestion.corruption import NOISE_SUFFIX, corrupt_clean_dataframe
-from ingestion.crossref import PaperRecord
+from ingestion.cp2_validation import validate_cp2_handoff
+from evaluation.testset import build_test_set
+from ingestion.crossref import PaperRecord, parse_crossref_payload
 
 
 def paper(number: int, **overrides) -> PaperRecord:
@@ -149,3 +152,46 @@ def test_save_requires_cleaning_lineage(tmp_path) -> None:
 
     with pytest.raises(ValueError, match="cleaning_report"):
         save_clean_dataframe(clean, tmp_path / "clean.csv", tmp_path / "clean.json")
+
+
+def test_crossref_type_is_used_when_subject_is_missing() -> None:
+    payload = {
+        "message": {
+            "items": [
+                {
+                    "DOI": "10.1000/fallback",
+                    "title": ["Fallback category"],
+                    "abstract": "A sufficiently detailed abstract.",
+                    "type": "journal-article",
+                    "published": {"date-parts": [[2025, 1, 1]]},
+                }
+            ]
+        }
+    }
+    record = parse_crossref_payload(payload)[0]
+    assert record.categories == ["journal-article"]
+    assert record.primary_category == "journal-article"
+
+
+def test_testset_rejects_nan_category_ground_truth(tmp_path) -> None:
+    clean = build_clean_dataframe(
+        [paper(number) for number in range(1, 5)], datetime(2025, 2, 1, tzinfo=UTC)
+    )
+    clean["categories_joined"] = pd.NA
+
+    with pytest.raises(ValueError, match="ground truth is empty"):
+        build_test_set(clean, tmp_path / "test_set.json")
+
+
+def test_cp2_clean_testset_manifest_handoff() -> None:
+    project_dir = Path(__file__).resolve().parents[1]
+    clean = pd.read_csv(project_dir / "data/clean/papers_clean.csv", keep_default_na=False)
+    test_set = json.loads((project_dir / "data/eval/test_set.json").read_text(encoding="utf-8"))
+    manifest = json.loads(
+        (project_dir / "data/embeddings/papers_embeddings.json").read_text(encoding="utf-8")
+    )
+
+    result = validate_cp2_handoff(clean, test_set, manifest)
+    assert result["status"] == "pass"
+    assert result["clean_documents"] == result["manifest_documents"] == 24
+    assert result["test_questions"] == 12

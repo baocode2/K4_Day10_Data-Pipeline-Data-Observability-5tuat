@@ -97,7 +97,11 @@ def parse_crossref_payload(payload: dict) -> list[PaperRecord]:
         if not title or not summary:
             continue
 
-        categories = item.get("subject", [])
+        categories = [normalize_whitespace(str(value)) for value in (item.get("subject") or []) if value]
+        if not categories and item.get("type"):
+            # Crossref often omits `subject`; `type` is a real source field and
+            # provides a traceable fallback instead of an invented category.
+            categories = [normalize_whitespace(str(item["type"]))]
         published = _extract_published(item)
         updated = _extract_updated(item, published)
 
