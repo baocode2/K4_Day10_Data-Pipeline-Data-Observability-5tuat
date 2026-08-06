@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+import json
+from pathlib import Path
 from typing import Any, Iterable
 
 import pandas as pd
 
-from core.utils import normalize_whitespace
+from core.utils import ensure_parent, normalize_whitespace, write_json
 from ingestion.crossref import PaperRecord
 
 
@@ -72,11 +74,15 @@ def build_text_for_embedding(
     categories_joined: Any = "",
 ) -> str:
     """Build the single, labelled document consumed by MiniLM/Chroma."""
+    def labelled(label: str, value: Any) -> str:
+        cleaned = _clean_text(value)
+        return f"{label}: {cleaned}" if cleaned else f"{label}:"
+
     parts = [
-        f"Title: {_clean_text(title)}",
-        f"Authors: {_clean_text(authors_joined)}",
-        f"Categories: {_clean_text(categories_joined)}",
-        f"Summary: {_clean_text(summary)}",
+        labelled("Title", title),
+        labelled("Authors", authors_joined),
+        labelled("Categories", categories_joined),
+        labelled("Summary", summary),
     ]
     return "\n".join(parts)
 
@@ -177,3 +183,25 @@ def build_clean_dataframe(records: list[PaperRecord], run_date: datetime) -> pd.
         "rejected": rejected,
     }
     return frame
+
+
+def save_clean_dataframe(df: pd.DataFrame, csv_path: Path, json_path: Path) -> None:
+    """Persist the clean contract as interoperable CSV and typed JSON artifacts."""
+    missing = [column for column in CLEAN_COLUMNS if column not in df.columns]
+    if missing:
+        raise ValueError(f"Cannot save clean dataframe; missing columns: {', '.join(missing)}")
+
+    ordered = df.loc[:, CLEAN_COLUMNS].copy()
+    csv_frame = ordered.copy()
+    for column in ("authors", "categories"):
+        csv_frame[column] = csv_frame[column].map(
+            lambda value: json.dumps(value if isinstance(value, list) else [], ensure_ascii=False)
+        )
+
+    ensure_parent(Path(csv_path))
+    csv_frame.to_csv(csv_path, index=False, encoding="utf-8")
+
+    # DataFrame.to_json converts numpy/pandas scalar types into standard JSON
+    # numbers while retaining authors/categories as arrays.
+    json_records = json.loads(ordered.to_json(orient="records", force_ascii=False))
+    write_json(Path(json_path), json_records)
