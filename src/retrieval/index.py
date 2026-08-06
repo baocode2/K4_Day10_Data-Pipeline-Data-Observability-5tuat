@@ -9,7 +9,53 @@ import pandas as pd
 
 from core.config import Settings
 from core.utils import read_json, safe_slug, write_json
-from retrieval.embeddings import MiniLMEmbeddings
+from retrieval.embeddings import GeminiEmbeddings
+
+
+INDEX_REQUIRED_COLUMNS = frozenset(
+    {
+        "paper_id",
+        "title",
+        "summary",
+        "text_for_embedding",
+        "published",
+        "authors_joined",
+        "categories_joined",
+        "abs_url",
+        "pdf_url",
+    }
+)
+
+
+def validate_index_dataframe(df: pd.DataFrame) -> dict[str, int]:
+    """Validate the clean-data contract required to build a RAG index.
+
+    This validation runs before embeddings are generated so a bad cleaning
+    handoff fails with an actionable error rather than a partially-built Chroma
+    collection. Optional metadata values may be empty, but document identity
+    and the text consumed by the embedding model may not.
+    """
+    missing_columns = sorted(INDEX_REQUIRED_COLUMNS.difference(df.columns))
+    if missing_columns:
+        raise ValueError(f"Clean dataframe is missing required columns: {', '.join(missing_columns)}.")
+    if df.empty:
+        raise ValueError("Clean dataframe is empty; cannot build a RAG collection.")
+
+    required_values = ("paper_id", "title", "summary", "text_for_embedding")
+    invalid_columns: list[str] = []
+    for column in required_values:
+        invalid = df[column].isna() | df[column].astype(str).str.strip().eq("")
+        if invalid.any():
+            invalid_columns.append(f"{column} ({int(invalid.sum())} blank)")
+    if invalid_columns:
+        raise ValueError("Clean dataframe has invalid RAG fields: " + ", ".join(invalid_columns) + ".")
+
+    paper_id_keys = df["paper_id"].astype(str).str.strip().str.casefold()
+    duplicate_count = int(paper_id_keys.duplicated(keep=False).sum())
+    if duplicate_count:
+        raise ValueError(f"Clean dataframe has {duplicate_count} duplicate paper_id values (case-insensitive).")
+
+    return {"documents": len(df), "required_columns": len(INDEX_REQUIRED_COLUMNS)}
 
 
 @dataclass(frozen=True)
@@ -34,7 +80,7 @@ class LocalEmbeddingIndex:
         self.documents = documents
         self.persist_path = persist_path
         self.embedding_backend = "chroma"
-        self.embedding_model = MiniLMEmbeddings(settings.embedding_model)
+        self.embedding_model = GeminiEmbeddings(settings.embedding_model, settings.google_api_key)
         self.client = chromadb.PersistentClient(path=str(persist_path))
         self.collection = self.client.get_collection(name=collection_name)
         self.documents_by_paper_id = {document["paper_id"].lower(): document for document in documents}
@@ -88,11 +134,12 @@ class LocalEmbeddingIndex:
         embeddings_output_path: Path | None = None,
     ) -> "LocalEmbeddingIndex":
         collection_name = cls._derive_collection_name(settings, embeddings_output_path)
+        validate_index_dataframe(df)
         documents = cls._build_documents(df)
         persist_path = settings.paths.chroma_dir
         persist_path.mkdir(parents=True, exist_ok=True)
 
-        embedding_model = MiniLMEmbeddings(settings.embedding_model)
+        embedding_model = GeminiEmbeddings(settings.embedding_model, settings.google_api_key)
         client = chromadb.PersistentClient(path=str(persist_path))
         try:
             client.delete_collection(name=collection_name)
