@@ -7,9 +7,11 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
+from core.config import load_settings
 from ingestion.cleaning import CLEAN_COLUMNS, build_clean_dataframe, save_clean_dataframe
 from ingestion.corruption import NOISE_SUFFIX, corrupt_clean_dataframe
 from ingestion.cp2_validation import validate_cp2_handoff
+from ingestion.cp3_validation import validate_cp3_clean_quality
 from evaluation.testset import build_test_set
 from ingestion.crossref import PaperRecord, parse_crossref_payload
 
@@ -195,3 +197,18 @@ def test_cp2_clean_testset_manifest_handoff() -> None:
     assert result["status"] == "pass"
     assert result["clean_documents"] == result["manifest_documents"] == 24
     assert result["test_questions"] == 12
+
+
+def test_cp3_clean_quality_artifacts_match() -> None:
+    project_dir = Path(__file__).resolve().parents[1]
+    settings = load_settings(project_dir)
+    clean = pd.read_csv(settings.paths.clean_csv, keep_default_na=False)
+    result = validate_cp3_clean_quality(
+        clean,
+        json.loads((settings.paths.clean_json.with_name("cleaning_report.json")).read_text(encoding="utf-8")),
+        json.loads((settings.paths.quality_dir / "baseline_quality.json").read_text(encoding="utf-8")),
+        json.loads(settings.paths.freshness_report.read_text(encoding="utf-8")),
+        settings,
+    )
+    assert result["status"] == "pass"
+    assert result["summary_min_chars"] == 100

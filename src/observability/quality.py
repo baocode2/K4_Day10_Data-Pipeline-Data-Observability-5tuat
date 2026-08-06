@@ -7,9 +7,10 @@ import pandas as pd
 
 from core.config import Settings
 from core.utils import write_json
+from ingestion.cleaning import MIN_SUMMARY_CHARS
 
 
-SUMMARY_MIN_CHARS = 50
+SUMMARY_MIN_CHARS = MIN_SUMMARY_CHARS
 MIN_ROWS = 8
 
 
