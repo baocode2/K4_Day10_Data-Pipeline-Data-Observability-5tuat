@@ -199,21 +199,11 @@ def build_clean_dataframe(records: list[PaperRecord], run_date: datetime) -> pd.
     return frame
 
 
-def save_clean_dataframe(
-    df: pd.DataFrame,
-    csv_path: Path,
-    json_path: Path,
-    report_path: Path | None = None,
-) -> None:
-    """Persist clean CSV/JSON plus the raw-to-clean lineage report."""
+def save_dataframe_artifacts(df: pd.DataFrame, csv_path: Path, json_path: Path) -> None:
+    """Persist a clean-schema dataframe as interoperable CSV and typed JSON."""
     missing = [column for column in CLEAN_COLUMNS if column not in df.columns]
     if missing:
-        raise ValueError(f"Cannot save clean dataframe; missing columns: {', '.join(missing)}")
-    cleaning_report = df.attrs.get("cleaning_report")
-    if not isinstance(cleaning_report, dict):
-        raise ValueError(
-            "Cannot save traceable clean artifacts; DataFrame.attrs['cleaning_report'] is missing."
-        )
+        raise ValueError(f"Cannot save dataframe artifacts; missing columns: {', '.join(missing)}")
 
     ordered = df.loc[:, CLEAN_COLUMNS].copy()
     csv_frame = ordered.copy()
@@ -229,6 +219,21 @@ def save_clean_dataframe(
     # numbers while retaining authors/categories as arrays.
     json_records = json.loads(ordered.to_json(orient="records", force_ascii=False))
     write_json(Path(json_path), json_records)
+
+
+def save_clean_dataframe(
+    df: pd.DataFrame,
+    csv_path: Path,
+    json_path: Path,
+    report_path: Path | None = None,
+) -> None:
+    """Persist clean CSV/JSON plus the raw-to-clean lineage report."""
+    cleaning_report = df.attrs.get("cleaning_report")
+    if not isinstance(cleaning_report, dict):
+        raise ValueError(
+            "Cannot save traceable clean artifacts; DataFrame.attrs['cleaning_report'] is missing."
+        )
+    save_dataframe_artifacts(df, csv_path, json_path)
 
     output_report_path = Path(report_path) if report_path else Path(json_path).with_name("cleaning_report.json")
     write_json(output_report_path, cleaning_report)

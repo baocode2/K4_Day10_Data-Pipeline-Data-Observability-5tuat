@@ -4,9 +4,6 @@ from typing import Any
 
 import pandas as pd
 
-from core.utils import first_sentence
-
-
 INVALID_TEXT_VALUES = {"", "nan", "none", "null"}
 TEST_SET_FIELDS = {
     "id",
@@ -40,7 +37,7 @@ def _expected_ground_truth(question_type: str, row: pd.Series) -> str:
         "categories": "categories_joined",
     }
     if question_type == "summary":
-        return first_sentence(_text(row.get("summary")))
+        return _text(row.get("summary"))
     if question_type not in field_map:
         raise ValueError(f"Unsupported question_type in CP2 test set: {question_type}")
     return _text(row.get(field_map[question_type]))

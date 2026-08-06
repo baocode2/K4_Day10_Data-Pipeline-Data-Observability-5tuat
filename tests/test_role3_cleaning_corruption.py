@@ -7,9 +7,17 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from ingestion.cleaning import CLEAN_COLUMNS, build_clean_dataframe, save_clean_dataframe
+from core.config import load_settings
+from core.utils import read_json
+from ingestion.cleaning import (
+    CLEAN_COLUMNS,
+    build_clean_dataframe,
+    save_clean_dataframe,
+    save_dataframe_artifacts,
+)
 from ingestion.corruption import NOISE_SUFFIX, corrupt_clean_dataframe
 from ingestion.cp2_validation import validate_cp2_handoff
+from ingestion.cp5_validation import validate_cp5_corruption
 from evaluation.testset import build_test_set
 from ingestion.crossref import PaperRecord, parse_crossref_payload
 
@@ -146,6 +154,21 @@ def test_clean_artifacts_round_trip_with_typed_json(tmp_path) -> None:
     assert cleaning_report["filtered_records"] == 0
 
 
+def test_corrupted_artifacts_round_trip_without_overwriting_lineage(tmp_path) -> None:
+    baseline = build_clean_dataframe(
+        [paper(number) for number in range(1, 13)], datetime(2025, 2, 1, tzinfo=UTC)
+    )
+    corrupted = corrupt_clean_dataframe(baseline, tmp_path / "corruption_log.json")
+    csv_path = tmp_path / "corrupted.csv"
+    json_path = tmp_path / "corrupted.json"
+
+    save_dataframe_artifacts(corrupted, csv_path, json_path)
+
+    assert len(pd.read_csv(csv_path, keep_default_na=False)) == len(corrupted)
+    assert len(json.loads(json_path.read_text(encoding="utf-8"))) == len(corrupted)
+    assert not (tmp_path / "cleaning_report.json").exists()
+
+
 def test_save_requires_cleaning_lineage(tmp_path) -> None:
     clean = build_clean_dataframe([paper(1)], datetime(2025, 2, 1, tzinfo=UTC))
     clean.attrs.clear()
@@ -175,7 +198,7 @@ def test_crossref_type_is_used_when_subject_is_missing() -> None:
 
 def test_testset_rejects_nan_category_ground_truth(tmp_path) -> None:
     clean = build_clean_dataframe(
-        [paper(number) for number in range(1, 5)], datetime(2025, 2, 1, tzinfo=UTC)
+        [paper(number) for number in range(1, 13)], datetime(2025, 2, 1, tzinfo=UTC)
     )
     clean["categories_joined"] = pd.NA
 
@@ -195,3 +218,19 @@ def test_cp2_clean_testset_manifest_handoff() -> None:
     assert result["status"] == "pass"
     assert result["clean_documents"] == result["manifest_documents"] == 24
     assert result["test_questions"] == 12
+
+
+def test_cp5_corruption_artifacts_match_log_and_quality() -> None:
+    project_dir = Path(__file__).resolve().parents[1]
+    settings = load_settings(project_dir)
+    result = validate_cp5_corruption(
+        pd.read_csv(settings.paths.clean_csv, keep_default_na=False),
+        pd.read_csv(settings.paths.corrupted_clean_csv, keep_default_na=False),
+        read_json(settings.paths.corruption_log),
+        read_json(settings.paths.quality_dir / "corrupted_quality.json"),
+        read_json(settings.paths.quality_dir / "corrupted_freshness_report.json"),
+        settings,
+    )
+    assert result["status"] == "pass"
+    assert result["baseline_rows"] == result["corrupted_rows"] == 24
+    assert result["stale_rows"] == 3
