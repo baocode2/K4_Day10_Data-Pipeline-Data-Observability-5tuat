@@ -82,7 +82,13 @@ class LocalEmbeddingIndex:
         self.embedding_backend = "chroma"
         self.embedding_model = GeminiEmbeddings(settings.embedding_model, settings.google_api_key)
         self.client = chromadb.PersistentClient(path=str(persist_path))
-        self.collection = self.client.get_collection(name=collection_name)
+        try:
+            self.collection = self.client.get_collection(name=collection_name)
+        except Exception:
+            self.collection = self.client.get_or_create_collection(
+                name=collection_name,
+                configuration={"hnsw": {"space": "cosine"}},
+            )
         self.documents_by_paper_id = {document["paper_id"].lower(): document for document in documents}
         self.documents_by_title = {document["title"].lower(): document for document in documents}
 

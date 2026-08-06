@@ -21,7 +21,11 @@ def build_agent(settings: Settings, index: LocalEmbeddingIndex):
     @tool
     def semantic_search_papers(query: str, top_k: int = 4) -> str:
         """Search the local paper corpus with embeddings and return the most relevant papers."""
-        results = index.search(query, top_k=top_k)
+        k = top_k if top_k and top_k > 0 else settings.top_k
+        results = index.search(query, top_k=k)
+        if not results:
+            return "No relevant papers found in the corpus."
+
         lines = []
         for result in results:
             lines.append(
@@ -54,8 +58,23 @@ def build_agent(settings: Settings, index: LocalEmbeddingIndex):
 
 def run_agent_question(agent: Any, question: str) -> str:
     result = agent.invoke({"messages": [{"role": "user", "content": question}]})
-    messages = result.get("messages", [])
+    if isinstance(result, str):
+        return result
+
+    messages = result.get("messages", []) if isinstance(result, dict) else []
     if not messages:
         return ""
+
     final_message = messages[-1]
-    return getattr(final_message, "content", str(final_message))
+    content = getattr(final_message, "content", str(final_message))
+
+    if isinstance(content, list):
+        parts = []
+        for part in content:
+            if isinstance(part, str):
+                parts.append(part)
+            elif isinstance(part, dict) and "text" in part:
+                parts.append(part["text"])
+        return "\n".join(parts)
+
+    return str(content)
