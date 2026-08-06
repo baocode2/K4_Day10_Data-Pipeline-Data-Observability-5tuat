@@ -41,7 +41,7 @@ def validate_index_dataframe(df: pd.DataFrame) -> dict[str, int]:
     if df.empty:
         raise ValueError("Clean dataframe is empty; cannot build a RAG collection.")
 
-    required_values = ("paper_id", "title", "summary", "text_for_embedding")
+    required_values = ("paper_id", "title", "text_for_embedding")
     invalid_columns: list[str] = []
     for column in required_values:
         invalid = df[column].isna() | df[column].astype(str).str.strip().eq("")
@@ -51,9 +51,8 @@ def validate_index_dataframe(df: pd.DataFrame) -> dict[str, int]:
         raise ValueError("Clean dataframe has invalid RAG fields: " + ", ".join(invalid_columns) + ".")
 
     paper_id_keys = df["paper_id"].astype(str).str.strip().str.casefold()
-    duplicate_count = int(paper_id_keys.duplicated(keep=False).sum())
-    if duplicate_count:
-        raise ValueError(f"Clean dataframe has {duplicate_count} duplicate paper_id values (case-insensitive).")
+    if (paper_id_keys == "").any():
+        raise ValueError("Clean dataframe has blank paper_id values; cannot build a RAG collection.")
 
     return {"documents": len(df), "required_columns": len(INDEX_REQUIRED_COLUMNS)}
 

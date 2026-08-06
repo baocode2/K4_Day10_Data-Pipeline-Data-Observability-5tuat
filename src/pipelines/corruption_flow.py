@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from pathlib import Path
+import time
+from typing import Callable, TypeVar
 
 import pandas as pd
 
@@ -18,6 +20,24 @@ from retrieval.index import LocalEmbeddingIndex
 def _load_clean_dataframe(json_path: Path) -> pd.DataFrame:
     records = read_json(json_path)
     return pd.DataFrame(records, columns=CLEAN_COLUMNS)
+
+
+_T = TypeVar("_T")
+
+
+def _with_rate_limit_retry(fn: Callable[[], _T], retries: int = 5, base_delay: float = 25.0) -> _T:
+    """Retry a call that hits the Gemini free-tier embedding rate limit (HTTP 429)."""
+    for attempt in range(retries):
+        try:
+            return fn()
+        except Exception as exc:
+            if "RESOURCE_EXHAUSTED" not in str(exc) and "429" not in str(exc):
+                raise
+            if attempt == retries - 1:
+                raise
+            print(f"    rate limited by embedding API, retrying in {base_delay:.0f}s (attempt {attempt + 1}/{retries})...")
+            time.sleep(base_delay)
+    raise RuntimeError("unreachable")
 
 
 def _dedupe_for_index(df: pd.DataFrame) -> pd.DataFrame:
@@ -58,18 +78,22 @@ def main() -> None:
     print(f"    {len(baseline_df)} -> {len(corrupted_df)} rows, log: {settings.paths.corruption_log}")
 
     print("3/11 Building corrupted embedding index...")
-    corrupted_index = LocalEmbeddingIndex.build(
-        _dedupe_for_index(corrupted_df), settings, embeddings_output_path=settings.paths.corrupted_embeddings_json
+    corrupted_index = _with_rate_limit_retry(
+        lambda: LocalEmbeddingIndex.build(
+            _dedupe_for_index(corrupted_df), settings, embeddings_output_path=settings.paths.corrupted_embeddings_json
+        )
     )
     print(f"    collection={corrupted_index.collection_name} documents={len(corrupted_index.documents)}")
 
     print("4/11 Evaluating corrupted dataset...")
-    corrupted_bundle = evaluate_pipeline(
-        settings=settings,
-        index=corrupted_index,
-        test_set_path=settings.paths.eval_testset,
-        metrics_output_path=settings.paths.corrupted_metrics,
-        answers_output_path=settings.paths.corrupted_answers,
+    corrupted_bundle = _with_rate_limit_retry(
+        lambda: evaluate_pipeline(
+            settings=settings,
+            index=corrupted_index,
+            test_set_path=settings.paths.eval_testset,
+            metrics_output_path=settings.paths.corrupted_metrics,
+            answers_output_path=settings.paths.corrupted_answers,
+        )
     )
     print(
         f"    retrieval_hit_rate={corrupted_bundle.summary['retrieval_hit_rate']:.4f} "
@@ -98,18 +122,22 @@ def main() -> None:
     print(f"    repaired from {len(raw_records)} raw records -> {len(repaired_df)} clean records")
 
     print("8/11 Building repaired embedding index...")
-    repaired_index = LocalEmbeddingIndex.build(
-        repaired_df, settings, embeddings_output_path=settings.paths.repaired_embeddings_json
+    repaired_index = _with_rate_limit_retry(
+        lambda: LocalEmbeddingIndex.build(
+            repaired_df, settings, embeddings_output_path=settings.paths.repaired_embeddings_json
+        )
     )
     print(f"    collection={repaired_index.collection_name} documents={len(repaired_index.documents)}")
 
     print("9/11 Evaluating repaired dataset...")
-    repaired_bundle = evaluate_pipeline(
-        settings=settings,
-        index=repaired_index,
-        test_set_path=settings.paths.eval_testset,
-        metrics_output_path=settings.paths.repaired_metrics,
-        answers_output_path=settings.paths.repaired_answers,
+    repaired_bundle = _with_rate_limit_retry(
+        lambda: evaluate_pipeline(
+            settings=settings,
+            index=repaired_index,
+            test_set_path=settings.paths.eval_testset,
+            metrics_output_path=settings.paths.repaired_metrics,
+            answers_output_path=settings.paths.repaired_answers,
+        )
     )
     print(
         f"    retrieval_hit_rate={repaired_bundle.summary['retrieval_hit_rate']:.4f} "

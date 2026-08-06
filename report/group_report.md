@@ -256,54 +256,61 @@ Lần chạy gần nhất: 2026-08-06 (sau khi pull raw/clean data mới nhất 
 
 ## 9. Corruption scenarios và repair
 
-| Corruption         | Cách tạo | Record bị tác động | Quality signal kỳ vọng | Tác động thực tế | Cách repair   |
-| ------------------ | ---------- | ---------------------: | ------------------------ | --------------------- | -------------- |
-| [Loại corruption] | [Mô tả]  |          [Số lượng] | [Kỳ vọng]              | [Artifact/metric]     | [Cách repair] |
-| [Loại corruption] | [Mô tả]  |          [Số lượng] | [Kỳ vọng]              | [Artifact/metric]     | [Cách repair] |
+Lần chạy gần nhất: 2026-08-06, `python script/run_corruption_flow.py`, input 24 baseline records → output 24 corrupted records (21 unique sau dedupe cho index).
+
+| Corruption            | Cách tạo                                              | Record bị tác động | Quality signal kỳ vọng                          | Tác động thực tế                                                   | Cách repair |
+| ----------------------- | -------------------------------------------------------- | -------------------: | -------------------------------------------------- | ---------------------------------------------------------------------- | ------------- |
+| `drop_latest_records`  | Xóa 3 record mới nhất theo `published`                 |                    3 | `row_count`, `freshness_threshold`, `age_days_valid` | Số record giảm 24→21 trước khi các corruption khác áp dụng          | Repair đọc lại 24 record gốc từ `data/raw/` |
+| `blank_summary`        | Set `summary = ""` cho 3 record                        |                    3 | `summary_min_chars`, `text_for_embedding_not_empty` | Góp phần khiến `corrupted_quality.overall_pass = false`              | nt |
+| `inject_summary_noise` | Thêm chuỗi rác `[CORRUPTED_NOISE] zxqv 000 !!!...` vào summary |                    3 | `summary_min_chars` (nhiễu nội dung)                | Làm nhiễu context đưa vào embedding/answer                             | nt |
+| `truncate_title`       | Cắt title còn 12 ký tự                                  |                    3 | `title_not_null` (không rỗng nhưng sai lệch)        | Title mất ý nghĩa, ảnh hưởng lookup theo title                         | nt |
+| `stale_published_date` | Lùi `published` 10 năm                                 |                    3 | `freshness_threshold`                               | `corrupted_freshness.is_fresh = false`, 3 stale rows                  | nt |
+| `duplicate_rows`       | Nhân đôi 3 record (thêm bản copy)                        |                    3 | `paper_id_unique`                                   | `corrupted_quality.overall_pass = false`; phải dedupe riêng trước khi build index (xem mục 11) | nt |
 
 Corruption log:
 
 - Đường dẫn: `data/results/corruption_log.json`
-- Trạng thái: [Có/Thiếu]
-- Nhận xét: [Log có đủ loại corruption, record bị tác động và tham số hay không?]
+- Trạng thái: Có
+- Nhận xét: Log đủ 6 loại corruption, mỗi loại ghi rõ `record_ids`, `parameters`, `before_count`/`after_count` — có thể truy vết từng bản ghi bị tác động.
 
 Giải thích cách repair đảm bảo dữ liệu được phục hồi từ nguồn đáng tin cậy thay vì chỉ che kết quả lỗi:
 
-[Giải thích tại đây.]
+`corruption_flow.py` bước 7 gọi lại `load_raw_records(data/raw/crossref_records.json)` — **raw snapshot gốc, chưa từng bị corrupt** — rồi chạy lại `build_clean_dataframe()` từ đầu để tạo `papers_clean_repaired.*`. Đây không phải sửa tay file corrupted hay vá số liệu: repaired dataset được sinh độc lập, hoàn toàn từ nguồn tin cậy, nên nếu raw data đổi thì repair vẫn tái lập đúng.
 
 ## 10. So sánh baseline, corrupted và repaired
 
-| Metric/signal            | Baseline | Corrupted | Repaired | Thay đổi do corruption | Mức phục hồi | Nhận xét   |
-| ------------------------ | -------: | --------: | -------: | -----------------------: | --------------: | ------------ |
-| `retrieval_hit_rate`   |      [ ] |       [ ] |      [ ] |                      [ ] |             [ ] | [Nhận xét] |
-| `mean_token_f1`        |      [ ] |       [ ] |      [ ] |                      [ ] |             [ ] | [Nhận xét] |
-| `judge_accuracy`       |      [ ] |       [ ] |      [ ] |                      [ ] |             [ ] | [Nhận xét] |
-| `mean_judge_score`     |      [ ] |       [ ] |      [ ] |                      [ ] |             [ ] | [Nhận xét] |
-| Quality checks pass/fail |      [ ] |       [ ] |      [ ] |                      [ ] |             [ ] | [Nhận xét] |
-| Freshness status         |      [ ] |       [ ] |      [ ] |                      [ ] |             [ ] | [Nhận xét] |
+Nguồn: `data/reports/corruption_report.md`, sinh từ `baseline_metrics.json`/`corrupted_metrics.json`/`repaired_metrics.json` + `baseline_quality.json`/`corrupted_quality.json`/`repaired_quality.json`.
 
-Nêu ít nhất hai kết luận có quan hệ nhân quả được hỗ trợ bởi artifacts:
+| Metric/signal             | Baseline | Corrupted | Repaired | Thay đổi do corruption | Mức phục hồi | Nhận xét |
+| -------------------------- | -------: | --------: | -------: | ------------------------: | ---------------: | ---------- |
+| `retrieval_hit_rate`     |   1.0000 |    0.7500 |   1.0000 |                    -0.2500 |           +0.2500 | Corruption (chủ yếu drop + duplicate + stale date) làm giảm hit rate 25%; repair phục hồi 100% |
+| `mean_token_f1`          |   0.8219 |    0.7736 |   0.8219 |                    -0.0484 |           +0.0484 | Giảm nhẹ do blank/noisy summary làm answer lệch; phục hồi hoàn toàn |
+| `judge_accuracy`         |   0.7500 |    0.7500 |   0.7500 |                     0.0000 |            0.0000 | Không đổi — corruption trong lô này chưa đủ mạnh để đổi phán quyết đúng/sai của LLM judge trên các câu hỏi đang có |
+| `mean_judge_score`       |   4.2500 |    4.1667 |   4.2500 |                    -0.0833 |           +0.0833 | Giảm nhẹ, phục hồi hoàn toàn |
+| Quality checks pass/fail | n/a (không chạy riêng cho baseline trong report này) |      FAIL |     PASS |          PASS → FAIL |      FAIL → PASS | `paper_id_unique` và `summary_min_chars` là các check fail chính |
+| Freshness status          | n/a (không chạy riêng cho baseline trong report này) |  FAIL (3 stale) | PASS (0 stale) |          Fresh → Stale |     Stale → Fresh | `stale_published_date` lùi 3 record 10 năm → vượt ngưỡng 180 ngày |
 
-1. [Corruption/data change] → [quality/freshness signal] → [retrieval/answer metric].
-2. [Repair action] → [quality/freshness recovery] → [agent metric recovery hoặc lý do chưa recovery].
+Hai kết luận nhân quả được hỗ trợ bởi artifact:
 
-Không kết luận corruption “có tác động” nếu số liệu không cho thấy thay đổi. Nếu kết quả khác kỳ vọng, mô tả giả thuyết và cách nhóm đã kiểm tra.
+1. **`duplicate_rows` + `stale_published_date` (corruption) → `paper_id_unique`/`freshness_threshold` fail (`data/quality/corrupted_quality.json`) → `retrieval_hit_rate` giảm từ 1.0 xuống 0.75 (`data/results/corrupted_metrics.json`)** — vì `drop_latest_records` loại bỏ 3 record mà evaluation test set đang hỏi tới, agent không còn tài liệu nguồn để trả lời đúng ground truth.
+2. **Repair (re-run cleaning từ `data/raw/`) → quality/freshness phục hồi hoàn toàn PASS/Fresh (`data/quality/repaired_quality.json`, `repaired_freshness_report.json`) → `retrieval_hit_rate` và `mean_token_f1` quay lại đúng bằng baseline (`data/results/repaired_metrics.json`)** — vì repaired dataset được build lại từ raw gốc, không kế thừa lỗi từ bản corrupted.
+
+Lưu ý trung thực: `judge_accuracy` **không đổi** giữa 3 trạng thái (0.75 cả ba) — corruption trong lần chạy này không đủ để lật phán quyết "đúng/sai" của LLM judge, dù retrieval và token-F1 đã bị ảnh hưởng rõ. Không kết luận quá mức rằng mọi metric đều nhạy với corruption.
 
 ## 11. Vấn đề tích hợp quan trọng
 
-Mô tả một vấn đề phát sinh khi ghép các module trong pipeline và cách nhóm xử lý:
-
-- **Triệu chứng:** [Lỗi hoặc kết quả sai.]
-- **Nguyên nhân:** [Root cause.]
-- **Cách xử lý:** [Thay đổi đã thực hiện.]
-- **Cách xác minh:** [Lệnh và artifact.]
+- **Triệu chứng:** `script/run_corruption_flow.py` crash ở bước 3/11 ("Building corrupted embedding index"): `ValueError: Clean dataframe has 6 duplicate paper_id values (case-insensitive).`
+- **Nguyên nhân:** Contract mismatch giữa hai module do hai người khác nhau phụ trách. `corrupt_clean_dataframe()` (`src/ingestion/corruption.py`, Vai trò 3) cố ý tạo `duplicate_rows` để test corruption `paper_id_unique`. `validate_index_dataframe()` (`src/retrieval/index.py`, Vai trò 4) lại cấm tuyệt đối duplicate `paper_id` khi build RAG index — hợp lý cho baseline sạch, nhưng chặn luôn cả dataset corrupted cố ý có duplicate.
+- **Cách xử lý:** Không sửa `validate_index_dataframe()` (đó là contract đúng cho index) và không vá thủ công JSON kết quả. Thêm hàm `_dedupe_for_index()` trong `src/pipelines/corruption_flow.py`: dataset đưa vào `run_data_quality_checks()`/lưu CSV-JSON vẫn giữ nguyên duplicate (để quality check phát hiện đúng lỗi), nhưng dataset đưa vào `LocalEmbeddingIndex.build()` được dedupe theo `paper_id` (case-insensitive, giữ bản đầu) trước khi embed.
+- **Cách xác minh:** `python script/run_corruption_flow.py` chạy hết 11/11 bước không lỗi; `data/quality/corrupted_quality.json` vẫn báo `paper_id_unique` FAIL (đúng ý đồ corruption), trong khi `data/embeddings/papers_embeddings.json` (collection `papers-corrupted`) có đúng 21 documents (24 - 3 duplicate).
 
 ## 12. Giới hạn và hướng cải thiện
 
 | Giới hạn hiện tại | Ảnh hưởng   | Hướng cải thiện có thể kiểm chứng |
 | --------------------- | -------------- | ----------------------------------------- |
-| [Giới hạn]          | [Ảnh hưởng] | [Đề xuất]                              |
-| [Giới hạn]          | [Ảnh hưởng] | [Đề xuất]                              |
+| `judge_accuracy` không đổi giữa baseline/corrupted/repaired (0.75 cả ba) | Chưa chứng minh được corruption ảnh hưởng tới phán quyết đúng/sai của LLM judge, chỉ retrieval và token-F1 bị ảnh hưởng rõ | Tăng cường độ corruption (VD: `blank_summary`/`inject_summary_noise` tác động nhiều record hơn, hoặc nhắm đúng vào record có trong test set) rồi so `judge_accuracy` lại |
+| Free-tier Gemini embedding API bị rate limit (429) khi chạy liên tiếp nhiều lần trong thời gian ngắn | Phải chờ ~30s và chạy lại thủ công; chưa có backoff tự động trong `LocalEmbeddingIndex`/`GeminiEmbeddings` | Thêm retry/backoff cho embed call (tương tự `_get_with_retry` đã có ở `crossref.py`) thay vì để lỗi 429 văng thẳng lên orchestration |
+| `run_data_quality_checks`/`build_freshness_report` không so baseline cùng lúc trong `generate_corruption_report` (bảng Quality/Freshness comparison ở `corruption_report.md` để trống cột baseline) | Báo cáo so sánh thiếu 1 cột tham chiếu, phải lấy số baseline từ `phase1_report.md` riêng | Truyền thêm `baseline_quality`/`baseline_freshness` vào `generate_corruption_report()` trong `src/observability/reporting.py` để bảng so sánh đủ 3 cột |
 
 ## 13. Checklist trước khi nộp
 

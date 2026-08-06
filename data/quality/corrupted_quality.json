@@ -1,0 +1,80 @@
+{
+  "report_name": "corrupted",
+  "generated_at": "2026-08-06T10:08:05.986160+00:00",
+  "total_rows": 24,
+  "checks": [
+    {
+      "name": "row_count",
+      "status": "pass",
+      "observed": 24,
+      "expected": ">= 8",
+      "message": "dataset has 24 rows"
+    },
+    {
+      "name": "paper_id_unique",
+      "status": "fail",
+      "observed": {
+        "null": 0,
+        "duplicate": 3
+      },
+      "expected": {
+        "null": 0,
+        "duplicate": 0
+      },
+      "message": "paper_id nulls=0, duplicates=3"
+    },
+    {
+      "name": "title_not_null",
+      "status": "pass",
+      "observed": 0,
+      "expected": 0,
+      "message": "rows with missing title = 0"
+    },
+    {
+      "name": "summary_min_chars",
+      "status": "fail",
+      "observed": {
+        "rows_below_threshold": 3,
+        "min_observed": 0
+      },
+      "expected": {
+        "rows_below_threshold": 0,
+        "min_chars": 50
+      },
+      "message": "rows with summary < 50 chars = 3"
+    },
+    {
+      "name": "text_for_embedding_not_empty",
+      "status": "pass",
+      "observed": 0,
+      "expected": 0,
+      "message": "rows with empty text_for_embedding = 0"
+    },
+    {
+      "name": "age_days_valid",
+      "status": "pass",
+      "observed": {
+        "invalid_rows": 0,
+        "max_age_days": 3728.0
+      },
+      "expected": {
+        "invalid_rows": 0,
+        "min_age_days": 0
+      },
+      "message": "rows with invalid age_days = 0"
+    },
+    {
+      "name": "freshness_threshold",
+      "status": "fail",
+      "observed": {
+        "stale_rows": 3,
+        "threshold_days": 180
+      },
+      "expected": {
+        "stale_rows": 0
+      },
+      "message": "rows older than 180 days = 3"
+    }
+  ],
+  "overall_pass": false
+}
