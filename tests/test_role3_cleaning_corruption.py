@@ -6,7 +6,7 @@ import json
 import pandas as pd
 import pytest
 
-from ingestion.cleaning import CLEAN_COLUMNS, build_clean_dataframe
+from ingestion.cleaning import CLEAN_COLUMNS, build_clean_dataframe, save_clean_dataframe
 from ingestion.corruption import NOISE_SUFFIX, corrupt_clean_dataframe
 from ingestion.crossref import PaperRecord
 
@@ -101,3 +101,18 @@ def test_corruption_is_auditable_and_does_not_mutate_baseline(tmp_path) -> None:
 def test_corruption_rejects_an_invalid_clean_contract(tmp_path) -> None:
     with pytest.raises(ValueError, match="missing clean columns"):
         corrupt_clean_dataframe(pd.DataFrame({"paper_id": ["one"]}), tmp_path / "log.json")
+
+
+def test_clean_artifacts_round_trip_with_typed_json(tmp_path) -> None:
+    clean = build_clean_dataframe([paper(1), paper(2)], datetime(2025, 2, 1, tzinfo=UTC))
+    csv_path = tmp_path / "papers_clean.csv"
+    json_path = tmp_path / "papers_clean.json"
+
+    save_clean_dataframe(clean, csv_path, json_path)
+
+    csv_frame = pd.read_csv(csv_path)
+    json_records = json.loads(json_path.read_text(encoding="utf-8"))
+    assert csv_frame.columns.tolist() == CLEAN_COLUMNS
+    assert json.loads(csv_frame.loc[0, "authors"]) == ["Ada Lovelace", "Alan Turing"]
+    assert json_records[0]["authors"] == ["Ada Lovelace", "Alan Turing"]
+    assert isinstance(json_records[0]["age_days"], int)
