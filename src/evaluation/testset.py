@@ -4,10 +4,10 @@ from typing import Any
 
 import pandas as pd
 
-from core.utils import first_sentence, write_json
+from core.utils import write_json
 
 
-MIN_DOCS = 4
+MIN_DOCS = 12
 PER_TYPE = 3
 QUESTION_TYPES = ("summary", "authors", "date", "categories")
 
@@ -23,7 +23,7 @@ def _summary_question(row: pd.Series) -> dict[str, Any]:
     return {
         "question_type": "summary",
         "question": f"What is the main idea of '{row['title']}'?",
-        "ground_truth": first_sentence(_cell_text(row, "summary")),
+        "ground_truth": _cell_text(row, "summary"),
     }
 
 
@@ -60,15 +60,19 @@ _QUESTION_BUILDERS = {
 
 
 def build_test_set(df: pd.DataFrame, output_path) -> list[dict[str, Any]]:
-    if len(df) < MIN_DOCS:
-        raise ValueError(f"Need at least {MIN_DOCS} cleaned docs to build a test set, got {len(df)}.")
+    total_needed = PER_TYPE * len(QUESTION_TYPES)
+    if len(df) < total_needed:
+        raise ValueError(
+            f"Need at least {total_needed} cleaned docs to build a test set, got {len(df)}."
+        )
 
-    rows = df.head(PER_TYPE).reset_index(drop=True)
+    sampled = df.head(total_needed).reset_index(drop=True)
     test_set: list[dict[str, Any]] = []
     sample_id = 0
-    for question_type in QUESTION_TYPES:
+    for type_offset, question_type in enumerate(QUESTION_TYPES):
         builder = _QUESTION_BUILDERS[question_type]
-        for _, row in rows.iterrows():
+        slice_start = type_offset * PER_TYPE
+        for _, row in sampled.iloc[slice_start : slice_start + PER_TYPE].iterrows():
             sample_id += 1
             payload = builder(row)
             paper_id = str(row["paper_id"])

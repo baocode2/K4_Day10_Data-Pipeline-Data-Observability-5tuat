@@ -15,9 +15,9 @@
 | --- | --- |
 | samples | 12.0000 |
 | retrieval_hit_rate | 1.0000 |
-| mean_token_f1 | 1.0000 |
-| judge_accuracy | 1.0000 |
-| mean_judge_score | 5.0000 |
+| mean_token_f1 | 0.8219 |
+| judge_accuracy | 0.7500 |
+| mean_judge_score | 4.2500 |
 | ragas | skipped=Set RUN_RAGAS=1 to enable the slower Ragas pass. |
 
 ## Data quality
