@@ -12,11 +12,18 @@ PER_TYPE = 3
 QUESTION_TYPES = ("summary", "authors", "date", "categories")
 
 
+def _cell_text(row: pd.Series, column: str) -> str:
+    value = row.get(column, "")
+    if value is None or pd.isna(value):
+        return ""
+    return str(value).strip()
+
+
 def _summary_question(row: pd.Series) -> dict[str, Any]:
     return {
         "question_type": "summary",
         "question": f"What is the main idea of '{row['title']}'?",
-        "ground_truth": first_sentence(str(row.get("summary", ""))),
+        "ground_truth": first_sentence(_cell_text(row, "summary")),
     }
 
 
@@ -24,7 +31,7 @@ def _authors_question(row: pd.Series) -> dict[str, Any]:
     return {
         "question_type": "authors",
         "question": f"Who authored '{row['title']}'?",
-        "ground_truth": str(row.get("authors_joined", "")),
+        "ground_truth": _cell_text(row, "authors_joined"),
     }
 
 
@@ -32,7 +39,7 @@ def _date_question(row: pd.Series) -> dict[str, Any]:
     return {
         "question_type": "date",
         "question": f"When was '{row['title']}' published?",
-        "ground_truth": str(row.get("published", "")),
+        "ground_truth": _cell_text(row, "published"),
     }
 
 
@@ -40,7 +47,7 @@ def _categories_question(row: pd.Series) -> dict[str, Any]:
     return {
         "question_type": "categories",
         "question": f"What categories does '{row['title']}' belong to?",
-        "ground_truth": str(row.get("categories_joined", "")),
+        "ground_truth": _cell_text(row, "categories_joined"),
     }
 
 
@@ -65,6 +72,10 @@ def build_test_set(df: pd.DataFrame, output_path) -> list[dict[str, Any]]:
             sample_id += 1
             payload = builder(row)
             paper_id = str(row["paper_id"])
+            if not payload["ground_truth"]:
+                raise ValueError(
+                    f"Cannot build {question_type} question for {paper_id}: ground truth is empty."
+                )
             test_set.append(
                 {
                     "id": f"q{sample_id:03d}",
