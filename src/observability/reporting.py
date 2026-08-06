@@ -185,6 +185,8 @@ def generate_corruption_report(
     repaired_quality: dict[str, Any],
     corrupted_freshness: dict[str, Any],
     repaired_freshness: dict[str, Any],
+    baseline_quality: dict[str, Any] | None = None,
+    baseline_freshness: dict[str, Any] | None = None,
 ) -> None:
     parts: list[str] = ["# Corruption - Repair comparison report", ""]
     parts.extend(
@@ -196,14 +198,14 @@ def generate_corruption_report(
     )
     parts.extend(
         _quality_comparison_table(
-            {},
+            baseline_quality or {},
             corrupted_quality,
             repaired_quality,
         )
     )
     parts.extend(
         _freshness_comparison_table(
-            {},
+            baseline_freshness or {},
             corrupted_freshness,
             repaired_freshness,
         )

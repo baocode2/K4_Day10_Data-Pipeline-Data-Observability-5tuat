@@ -25,7 +25,7 @@
     "judge": {
       "score": 2,
       "correct": false,
-      "reasoning": "The model answer captures the initial part of the reference answer, highlighting the use of LLMs for accident analysis and safety report generation in high-risk industrial settings. However, it fails to address the core innovation of the SafeRAG framework, which involves the multistage retrieval-augmented process, entity-centric approach, and integration of internal and external knowledge. The model answer lacks details on how SafeRAG overcomes the limitations of LLMs and the evaluation results demonstrating its effectiveness."
+      "reasoning": "The model answer only provides the introductory sentence of the summary and fails to explain the actual framework (SafeRAG) or its methodology, which is the core of the question."
     }
   },
   {
@@ -54,7 +54,7 @@
     "judge": {
       "score": 2,
       "correct": false,
-      "reasoning": "The model answer only captures the initial challenge of diagnosing jawbone lesions but fails to mention the development and validation of the JADE-Plus framework, its components, or its performance evaluation. The reference answer provides a comprehensive overview of the study's objectives, methodology, and results, which are missing in the model answer."
+      "reasoning": "The model answer only provides the first sentence of the abstract, which describes the problem context rather than the main idea of the framework itself."
     }
   },
   {
@@ -83,7 +83,7 @@
     "judge": {
       "score": 2,
       "correct": false,
-      "reasoning": "The model answer only captures the introductory part of the reference answer, failing to address the main idea comprehensively. It lacks details about the specific framework (CM-RAF-Lag-Llama), the validation process, and the results of the study, which are crucial to understanding the main idea of the paper."
+      "reasoning": "The model answer only provides the first sentence of the abstract, which serves as an introduction to the problem rather than summarizing the main idea, methodology, or findings of the paper."
     }
   },
   {
@@ -112,7 +112,7 @@
     "judge": {
       "score": 5,
       "correct": true,
-      "reasoning": "The model answer matches the reference answer exactly, listing all the authors correctly. Therefore, it is materially correct."
+      "reasoning": "The model correctly identified all three authors listed in the reference answer."
     }
   },
   {
@@ -141,7 +141,7 @@
     "judge": {
       "score": 5,
       "correct": true,
-      "reasoning": "The model answer matches the reference answer exactly, listing both authors correctly. This indicates that the model has accurately identified the authors of the paper, demonstrating a complete and correct understanding of the question."
+      "reasoning": "The model correctly identified both authors of the specified paper."
     }
   },
   {
@@ -170,7 +170,7 @@
     "judge": {
       "score": 5,
       "correct": true,
-      "reasoning": "The model answer matches the reference answer exactly, listing all the authors in the correct order. This indicates that the model has accurately identified the authors of the specified work, demonstrating a complete and correct understanding of the question."
+      "reasoning": "The model answer perfectly matches the reference answer provided."
     }
   },
   {
@@ -199,7 +199,7 @@
     "judge": {
       "score": 5,
       "correct": true,
-      "reasoning": "The model answer matches the reference answer exactly, indicating that the publication date provided by the model is correct. Both answers state that the paper was published on June 30, 2026, which confirms the accuracy of the model's response."
+      "reasoning": "The model answer matches the reference answer exactly."
     }
   },
   {
@@ -228,7 +228,7 @@
     "judge": {
       "score": 5,
       "correct": true,
-      "reasoning": "The model answer matches the reference answer exactly, indicating that the model correctly identified the publication date of 'The Age of Autonomous Agents: A Bibliometric Review of Agentic AI Architectures, Applications, and Emerging Challenges' as June 30, 2026. This demonstrates a precise understanding of the question and the ability to retrieve accurate information."
+      "reasoning": "The model provided the exact date specified in the reference answer."
     }
   },
   {
@@ -257,7 +257,7 @@
     "judge": {
       "score": 5,
       "correct": true,
-      "reasoning": "The model answer matches the reference answer exactly, indicating that the model correctly identified the publication date of the document. Both answers state the date as June 15, 2026, which confirms the model's accuracy in this instance."
+      "reasoning": "The model answer matches the reference answer exactly."
     }
   },
   {
@@ -286,7 +286,7 @@
     "judge": {
       "score": 5,
       "correct": true,
-      "reasoning": "The model answer correctly identifies the category of the given title as 'journal-article', which matches the reference answer. This indicates a complete understanding of the context and classification of the document type."
+      "reasoning": "The model correctly identified the category of the provided title as a journal article."
     }
   },
   {
@@ -315,7 +315,7 @@
     "judge": {
       "score": 5,
       "correct": true,
-      "reasoning": "The model answer matches the reference answer exactly, indicating that it correctly identifies the category of the document as 'posted-content'. There is no discrepancy between the two answers, thus the model answer is materially correct."
+      "reasoning": "The model correctly identified the category as posted-content, matching the reference answer."
     }
   },
   {
@@ -344,7 +344,7 @@
     "judge": {
       "score": 5,
       "correct": true,
-      "reasoning": "The model answer correctly identifies the category of 'Chatbot Hybrid Fatwa MUI Menggunakan Retrieval Augmented Generation dan Large Language Model' as a 'journal-article,' which matches the reference answer. This indicates that the model's response is materially correct and aligns perfectly with the expected answer."
+      "reasoning": "The model correctly identified the category as a journal-article, which matches the reference answer."
     }
   }
 ]

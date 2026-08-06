@@ -155,6 +155,8 @@ def main() -> None:
     )
 
     print("11/11 Writing comparison report...")
+    baseline_quality = read_json(settings.paths.quality_dir / "baseline_quality.json")
+    baseline_freshness = read_json(settings.paths.freshness_report)
     generate_corruption_report(
         settings.paths.comparison_report,
         baseline_metrics=baseline_metrics,
@@ -164,6 +166,8 @@ def main() -> None:
         repaired_quality=repaired_quality,
         corrupted_freshness=corrupted_freshness,
         repaired_freshness=repaired_freshness,
+        baseline_quality=baseline_quality,
+        baseline_freshness=baseline_freshness,
     )
     print(f"    report: {settings.paths.comparison_report}")
 

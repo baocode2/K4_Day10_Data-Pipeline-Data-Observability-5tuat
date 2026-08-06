@@ -25,7 +25,7 @@
     "judge": {
       "score": 2,
       "correct": false,
-      "reasoning": "The model answer provides a general description of Retrieval-Augmented Generation (RAG) but fails to capture the specific details and innovations of the SafeRAG framework as outlined in the reference answer. The reference answer highlights the multistage retrieval process, entity-centric approach, and the integration of internal and external knowledge, which are not mentioned in the model answer. Additionally, the model answer does not address the specific application to oil and gas safety report generation or the evaluation metrics used to demonstrate SafeRAG's effectiveness."
+      "reasoning": "The model answer provides a generic definition of RAG but fails to mention the specific 'SafeRAG' framework, its focus on the oil and gas industry, or its unique multistage methodology described in the reference."
     }
   },
   {
@@ -52,9 +52,9 @@
     "retrieval_hit": false,
     "token_f1": 0.05319148936170213,
     "judge": {
-      "score": 2,
+      "score": 1,
       "correct": false,
-      "reasoning": "The model answer does not accurately capture the main idea of the study. The reference answer provides a detailed explanation of the development and validation of JADE-Plus, a multimodal framework for diagnostic support in jawbone lesions. It highlights the system's components, evaluation metrics, and performance outcomes. In contrast, the model answer only briefly mentions the limitations of generic Large Language Models (LLMs) without addressing the specific context or findings of the JADE-Plus study. Therefore, the model answer is not materially correct in relation to the reference answer."
+      "reasoning": "The model answer only provides a generic introductory sentence about LLMs and fails to address the specific question regarding the main idea of the JADE-Plus framework."
     }
   },
   {
@@ -83,7 +83,7 @@
     "judge": {
       "score": 1,
       "correct": false,
-      "reasoning": "The model answer is incorrect as it misinterprets the main idea of the paper. The reference answer discusses a method for time-series forecasting in financial markets using retrieval-augmented large language models, specifically focusing on equity analysis across different markets. In contrast, the model answer incorrectly describes the study as focusing on scientific literature review generation, which is unrelated to the actual content of the paper."
+      "reasoning": "The model answer is completely incorrect; it describes a system for scientific literature review generation, whereas the paper is about financial time-series forecasting using retrieval-augmented models."
     }
   },
   {
@@ -112,7 +112,7 @@
     "judge": {
       "score": 5,
       "correct": true,
-      "reasoning": "The model answer matches the reference answer exactly, listing all the authors correctly. Therefore, it is materially correct."
+      "reasoning": "The model correctly identified all three authors listed in the reference answer."
     }
   },
   {
@@ -141,7 +141,7 @@
     "judge": {
       "score": 5,
       "correct": true,
-      "reasoning": "The model answer matches the reference answer exactly, listing both authors correctly. This indicates that the model has accurately identified the authors of the paper in question."
+      "reasoning": "The model correctly identified both authors of the specified paper."
     }
   },
   {
@@ -170,7 +170,7 @@
     "judge": {
       "score": 5,
       "correct": true,
-      "reasoning": "The model answer matches the reference answer exactly, listing all the authors in the correct order. This indicates that the model has accurately identified the authors of the specified work, demonstrating a complete and correct understanding of the question."
+      "reasoning": "The model answer perfectly matches the reference answer provided."
     }
   },
   {
@@ -199,7 +199,7 @@
     "judge": {
       "score": 5,
       "correct": true,
-      "reasoning": "The model answer matches the reference answer exactly, indicating that the publication date provided by the model is materially correct. Both answers state that the paper was published on June 30, 2026, demonstrating accuracy and alignment with the reference information."
+      "reasoning": "The model answer matches the reference answer exactly."
     }
   },
   {
@@ -228,7 +228,7 @@
     "judge": {
       "score": 5,
       "correct": true,
-      "reasoning": "The model answer matches the reference answer exactly, indicating that the model correctly identified the publication date of 'The Age of Autonomous Agents: A Bibliometric Review of Agentic AI Architectures, Applications, and Emerging Challenges' as June 30, 2026. This demonstrates a precise understanding of the question and the ability to retrieve accurate information."
+      "reasoning": "The model provided the exact date specified in the reference answer."
     }
   },
   {
@@ -257,7 +257,7 @@
     "judge": {
       "score": 5,
       "correct": true,
-      "reasoning": "The model answer matches the reference answer exactly, indicating that the model correctly identified the publication date of the document. Both answers state the date as June 15, 2026, which confirms the model's accuracy in this instance."
+      "reasoning": "The model answer matches the reference answer exactly."
     }
   },
   {
@@ -286,7 +286,7 @@
     "judge": {
       "score": 5,
       "correct": true,
-      "reasoning": "The model answer correctly identifies the category of the given title as 'journal-article', which matches the reference answer. This indicates that the model has accurately understood the context and classification of the title, leading to a perfect score."
+      "reasoning": "The model correctly identified the category of the provided title as a journal article."
     }
   },
   {
@@ -315,7 +315,7 @@
     "judge": {
       "score": 5,
       "correct": true,
-      "reasoning": "The model answer matches the reference answer exactly, indicating that it correctly identifies the category of the document as 'posted-content'. This demonstrates a complete understanding of the question and the reference answer, warranting a perfect score."
+      "reasoning": "The model correctly identified the category as posted-content, matching the reference answer."
     }
   },
   {
@@ -344,7 +344,7 @@
     "judge": {
       "score": 5,
       "correct": true,
-      "reasoning": "The model answer correctly identifies the category of 'Chatbot Hybrid Fatwa MUI Menggunakan Retrieval Augmented Generation dan Large Language Model' as a 'journal-article', which matches the reference answer. This indicates a perfect match and understanding of the question, warranting a full score."
+      "reasoning": "The model correctly identified the category as a journal-article, which matches the reference answer."
     }
   }
 ]
