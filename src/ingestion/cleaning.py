@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from html import unescape
 import json
 from pathlib import Path
+import re
 from typing import Any, Iterable
 
 import pandas as pd
@@ -29,6 +31,7 @@ CLEAN_COLUMNS = [
     "pdf_url",
     "comment",
 ]
+MIN_SUMMARY_CHARS = 100
 
 
 def _clean_text(value: Any) -> str:
@@ -36,6 +39,12 @@ def _clean_text(value: Any) -> str:
     if value is None or (not isinstance(value, (list, tuple, dict)) and pd.isna(value)):
         return ""
     return normalize_whitespace(str(value))
+
+
+def _clean_markup_text(value: Any) -> str:
+    """Remove Crossref XML/HTML tags and decode entities before normalization."""
+    text = unescape(_clean_text(value))
+    return normalize_whitespace(re.sub(r"<[^>]*>", " ", text))
 
 
 def _clean_list(values: Iterable[Any] | Any) -> list[str]:
@@ -73,18 +82,12 @@ def build_text_for_embedding(
     authors_joined: Any = "",
     categories_joined: Any = "",
 ) -> str:
-    """Build the single, labelled document consumed by MiniLM/Chroma."""
-    def labelled(label: str, value: Any) -> str:
-        cleaned = _clean_text(value)
-        return f"{label}: {cleaned}" if cleaned else f"{label}:"
-
-    parts = [
-        labelled("Title", title),
-        labelled("Authors", authors_joined),
-        labelled("Categories", categories_joined),
-        labelled("Summary", summary),
-    ]
-    return "\n".join(parts)
+    """Build the exact retrieval text required by the clean-data contract."""
+    del categories_joined  # Categories remain metadata, not embedding content.
+    title_text = _clean_markup_text(title)
+    authors_text = _clean_text(authors_joined)
+    summary_text = _clean_markup_text(summary)
+    return f"Title: {title_text} | Authors: {authors_text} | Summary: {summary_text}".rstrip()
 
 
 def build_clean_dataframe(records: list[PaperRecord], run_date: datetime) -> pd.DataFrame:
@@ -106,13 +109,14 @@ def build_clean_dataframe(records: list[PaperRecord], run_date: datetime) -> pd.
         "missing_paper_id": 0,
         "missing_title": 0,
         "missing_summary": 0,
+        "summary_too_short": 0,
         "invalid_published": 0,
     }
 
     for record in records:
         paper_id = _clean_text(record.paper_id)
-        title = _clean_text(record.title)
-        summary = _clean_text(record.summary)
+        title = _clean_markup_text(record.title)
+        summary = _clean_markup_text(record.summary)
         published_at = _parse_date(record.published)
 
         if not paper_id:
@@ -123,6 +127,9 @@ def build_clean_dataframe(records: list[PaperRecord], run_date: datetime) -> pd.
             continue
         if not summary:
             rejected["missing_summary"] += 1
+            continue
+        if len(summary) < MIN_SUMMARY_CHARS:
+            rejected["summary_too_short"] += 1
             continue
         if published_at is None:
             rejected["invalid_published"] += 1
