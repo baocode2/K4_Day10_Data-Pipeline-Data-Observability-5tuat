@@ -1,7 +1,7 @@
 {
   "backend": "chroma",
   "embedding_model": "gemini-embedding-001",
-  "persist_path": "E:\\VinAI\\K4_Day10_Data-Pipeline-Data-Observability-5tuat\\data\\chroma",
+  "persist_path": "D:\\VIN.AI\\VIN_Labs\\K4_Day10_Data-Pipeline-Data-Observability-5tuat\\data\\chroma",
   "collection_name": "papers-baseline",
   "documents": [
     {

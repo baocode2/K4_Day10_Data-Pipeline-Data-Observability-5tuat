@@ -18,8 +18,9 @@ from ingestion.cleaning import (
 from ingestion.corruption import NOISE_SUFFIX, corrupt_clean_dataframe
 from ingestion.cp2_validation import validate_cp2_handoff
 from ingestion.cp5_validation import validate_cp5_corruption
+from ingestion.cp6_validation import validate_cp6_repair
 from evaluation.testset import build_test_set
-from ingestion.crossref import PaperRecord, parse_crossref_payload
+from ingestion.crossref import PaperRecord, load_raw_records, parse_crossref_payload
 
 
 def paper(number: int, **overrides) -> PaperRecord:
@@ -234,3 +235,34 @@ def test_cp5_corruption_artifacts_match_log_and_quality() -> None:
     assert result["status"] == "pass"
     assert result["baseline_rows"] == result["corrupted_rows"] == 24
     assert result["stale_rows"] == 3
+
+
+def test_cp6_repair_artifacts_recover_baseline() -> None:
+    project_dir = Path(__file__).resolve().parents[1]
+    settings = load_settings(project_dir)
+    quality_dir = settings.paths.quality_dir
+
+    def frame(path):
+        return pd.DataFrame(read_json(path), columns=CLEAN_COLUMNS)
+
+    result = validate_cp6_repair(
+        load_raw_records(settings.paths.raw_records_json),
+        frame(settings.paths.clean_json),
+        frame(settings.paths.corrupted_clean_json),
+        frame(settings.paths.repaired_clean_json),
+        read_json(settings.paths.clean_json.parent / "repaired_cleaning_report.json"),
+        read_json(settings.paths.corruption_log),
+        read_json(quality_dir / "baseline_quality.json"),
+        read_json(quality_dir / "corrupted_quality.json"),
+        read_json(quality_dir / "repaired_quality.json"),
+        read_json(settings.paths.freshness_report),
+        read_json(quality_dir / "corrupted_freshness_report.json"),
+        read_json(quality_dir / "repaired_freshness_report.json"),
+        read_json(settings.paths.baseline_metrics),
+        read_json(settings.paths.corrupted_metrics),
+        read_json(settings.paths.repaired_metrics),
+        read_json(settings.paths.embeddings_json),
+        read_json(settings.paths.repaired_embeddings_json),
+    )
+    assert result["status"] == "pass"
+    assert result["repaired_equals_baseline"] is True
