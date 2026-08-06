@@ -1,0 +1,81 @@
+{
+  "generated_at": "2026-08-06T08:16:37.917504+00:00",
+  "input_rows": 12,
+  "output_rows": 12,
+  "events": [
+    {
+      "type": "drop_latest_records",
+      "record_ids": [
+        "10.1000/12"
+      ],
+      "parameters": {
+        "count": 1
+      },
+      "before_count": 12,
+      "after_count": 11
+    },
+    {
+      "type": "blank_summary",
+      "record_ids": [
+        "10.1000/11"
+      ],
+      "parameters": {
+        "replacement": ""
+      },
+      "before_count": 11,
+      "after_count": 11
+    },
+    {
+      "type": "inject_summary_noise",
+      "record_ids": [
+        "10.1000/10"
+      ],
+      "parameters": {
+        "suffix": " [CORRUPTED_NOISE] zxqv 000 !!! unrelated-token-stream"
+      },
+      "before_count": 11,
+      "after_count": 11
+    },
+    {
+      "type": "truncate_title",
+      "record_ids": [
+        "10.1000/9"
+      ],
+      "parameters": {
+        "max_chars": 12
+      },
+      "before_count": 11,
+      "after_count": 11
+    },
+    {
+      "type": "stale_published_date",
+      "record_ids": [
+        "10.1000/8"
+      ],
+      "parameters": {
+        "years_subtracted": 10
+      },
+      "before_count": 11,
+      "after_count": 11
+    },
+    {
+      "type": "duplicate_rows",
+      "record_ids": [
+        "10.1000/7"
+      ],
+      "parameters": {
+        "copies_added": 1
+      },
+      "before_count": 11,
+      "after_count": 12
+    }
+  ],
+  "summary": {
+    "drop_latest_records": 1,
+    "blank_summary": 1,
+    "inject_summary_noise": 1,
+    "truncate_title": 1,
+    "stale_published_date": 1,
+    "duplicate_rows": 1
+  }
+}
