@@ -29,7 +29,7 @@
 | row_count | PASS | dataset has 24 rows |
 | paper_id_unique | PASS | paper_id nulls=0, duplicates=0 |
 | title_not_null | PASS | rows with missing title = 0 |
-| summary_min_chars | PASS | rows with summary < 50 chars = 0 |
+| summary_min_chars | PASS | rows with summary < 100 chars = 0 |
 | text_for_embedding_not_empty | PASS | rows with empty text_for_embedding = 0 |
 | age_days_valid | PASS | rows with invalid age_days = 0 |
 | freshness_threshold | PASS | rows older than 180 days = 0 |

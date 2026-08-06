@@ -1,6 +1,6 @@
 {
   "report_name": "baseline",
-  "generated_at": "2026-08-06T09:30:54.457191+00:00",
+  "generated_at": "2026-08-06T09:41:01.151881+00:00",
   "total_rows": 24,
   "checks": [
     {
@@ -39,9 +39,9 @@
       },
       "expected": {
         "rows_below_threshold": 0,
-        "min_chars": 50
+        "min_chars": 100
       },
-      "message": "rows with summary < 50 chars = 0"
+      "message": "rows with summary < 100 chars = 0"
     },
     {
       "name": "text_for_embedding_not_empty",
