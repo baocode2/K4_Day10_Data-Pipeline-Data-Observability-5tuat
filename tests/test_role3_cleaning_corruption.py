@@ -116,3 +116,4 @@ def test_clean_artifacts_round_trip_with_typed_json(tmp_path) -> None:
     assert json.loads(csv_frame.loc[0, "authors"]) == ["Ada Lovelace", "Alan Turing"]
     assert json_records[0]["authors"] == ["Ada Lovelace", "Alan Turing"]
     assert isinstance(json_records[0]["age_days"], int)
+    assert all(not line.endswith(" ") for row in json_records for line in row["text_for_embedding"].splitlines())

@@ -74,11 +74,15 @@ def build_text_for_embedding(
     categories_joined: Any = "",
 ) -> str:
     """Build the single, labelled document consumed by MiniLM/Chroma."""
+    def labelled(label: str, value: Any) -> str:
+        cleaned = _clean_text(value)
+        return f"{label}: {cleaned}" if cleaned else f"{label}:"
+
     parts = [
-        f"Title: {_clean_text(title)}",
-        f"Authors: {_clean_text(authors_joined)}",
-        f"Categories: {_clean_text(categories_joined)}",
-        f"Summary: {_clean_text(summary)}",
+        labelled("Title", title),
+        labelled("Authors", authors_joined),
+        labelled("Categories", categories_joined),
+        labelled("Summary", summary),
     ]
     return "\n".join(parts)
 
